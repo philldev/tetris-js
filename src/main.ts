@@ -44,6 +44,13 @@ function getCellFromMatrix(
 	return cellCoords
 }
 
+function rotateMatrix(matrix: number[][]) {
+	const N = matrix.length - 1
+	const result = matrix.map((row, i) => row.map((_, j) => matrix[N - j][i]))
+
+	return result
+}
+
 function paintCell(x: number, y: number, color: string) {
 	const el = <HTMLSpanElement>document.getElementById(`${x}-${y}`)
 	if (el) el.style.background = color
@@ -104,14 +111,14 @@ const Tetromino = {
 		[0, 0, 1, 0],
 	],
 	L: [
-		[0, 1, 0, 0],
-		[0, 1, 0, 0],
-		[0, 1, 1, 0],
+		[0, 0, 1],
+		[1, 1, 1],
+		[0, 0, 0],
 	],
 	J: [
-		[0, 0, 1, 0],
-		[0, 0, 1, 0],
-		[0, 1, 1, 0],
+		[1, 0, 0],
+		[1, 1, 1],
+		[0, 0, 0],
 	],
 	S: [
 		[0, 1, 1],
@@ -181,6 +188,8 @@ function clearTetromino(t: ITetromino) {
 let tetromino = createTetromino()
 let tetrominos: ITetromino[] = []
 let gameOver = false
+let timerId: number
+let timerSpeed = 1000
 
 function placeTetromino(t: ITetromino) {
 	if (t.row < 1) {
@@ -256,18 +265,20 @@ function moveRight() {
 	}
 }
 
-let timerId: number
-
-function loop() {
-	moveDown()
+function rotate() {
+	if (!occupied().right) {
+		clearTetromino(tetromino)
+		tetromino.matrix = rotateMatrix(tetromino.matrix)
+		drawTetromino(tetromino)
+	}
 }
 
 window.addEventListener('keydown', (e) => {
-	console.log(e.code)
-
 	if (e.code === 'ArrowLeft') moveLeft()
 	if (e.code === 'ArrowRight') moveRight()
 	if (e.code === 'ArrowDown') moveDown()
+	if (e.code === 'ArrowDown') moveDown()
+	if (e.code === 'KeyR') rotate()
 })
 
-timerId = setInterval(loop, 1000)
+timerId = setInterval(moveDown, timerSpeed)
