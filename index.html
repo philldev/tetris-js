@@ -6,8 +6,19 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>Vite + TS</title>
 	</head>
-	<body>
-		<div id="app"></div>
+	<body class="text-white">
+		<div id="app" class="bg-black h-screen flex justify-center items-center">
+			<div
+				id="play-field"
+				class="flex flex-wrap outline outline-gray-800"
+			></div>
+			<div id="sidebar" class="flex flex-col gap-4 ml-4">
+				<div class="p-2 px-4 border border-gray-800">
+					<p>NEXT</p>
+					<div id="sequence" class="flex flex-col"></div>
+				</div>
+			</div>
+		</div>
 		<script type="module" src="/src/main.ts"></script>
 	</body>
 </html>

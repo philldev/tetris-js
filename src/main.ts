@@ -70,20 +70,28 @@ function drawCells(rows: number, cols: number, parent: HTMLElement) {
 	}
 }
 
-function drawPlayfield(width: number, height: number, parent: HTMLElement) {
-	const playfieldElement = document.createElement('div')
+function drawPlayfield(width: number, height: number) {
+	const playfieldElement = <HTMLDivElement>document.getElementById('play-field')
 	playfieldElement.style.width = width + 'px'
 	playfieldElement.style.height = height + 'px'
-	playfieldElement.className = cn(
-		'bg-gray-900 outline outline-gray-600 flex flex-wrap'
-	)
-	parent.appendChild(playfieldElement)
 	return playfieldElement
 }
 
-const appElement = <HTMLDivElement>document.querySelector('#app')
+function setSidebarSize(height: number, width: number) {
+	const sidebarElement = <HTMLDivElement>document.getElementById('sidebar')
+	sidebarElement.style.height = height + 'px'
+	sidebarElement.style.width = width + 'px'
+}
 
-appElement.className = cn('w-screen h-screen bg-black grid place-items-center')
+function drawSequence(sequence: string[]) {
+	const sequenceElement = <HTMLDivElement>document.getElementById('sequence')
+	sequenceElement.innerText = ''
+	sequence.forEach((s) => {
+		const el = document.createElement('span')
+		el.innerText = s
+		sequenceElement.appendChild(el)
+	})
+}
 
 const COLS = 10
 const ROWS = 24
@@ -91,11 +99,8 @@ const CELL_SIZE = 25
 const PLAYFIELD_WIDTH = CELL_SIZE * COLS
 const PLAYFIELD_HEIGHT = CELL_SIZE * ROWS
 
-const playfieldElement = drawPlayfield(
-	PLAYFIELD_WIDTH,
-	PLAYFIELD_HEIGHT,
-	appElement
-)
+const playfieldElement = drawPlayfield(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT)
+setSidebarSize(PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH / 2)
 
 drawCells(ROWS, COLS, playfieldElement)
 
@@ -149,13 +154,17 @@ const Colors: Record<Shapes, string> = {
 	T: 'magenta',
 }
 
-function createTetromino() {
+function getRandomShape() {
 	const shapes = ['I', 'J', 'L', 'O', 'S', 'Z', 'T'] as const
 	const shape = shapes[getRandomInt(0, shapes.length - 1)]
+	return shape
+}
 
+function createTetromino(shape?: Shapes) {
+	const shapeToRender = shape ?? getRandomShape()
 	return {
-		matrix: Tetromino[shape],
-		color: Colors[shape],
+		matrix: Tetromino[shapeToRender],
+		color: Colors[shapeToRender],
 		row: -2,
 		col: getRandomInt(1, COLS - Tetromino.O[0].length),
 	}
@@ -185,6 +194,7 @@ function clearTetromino(t: ITetromino) {
 	})
 }
 
+let sequence = [getRandomShape(), getRandomShape(), getRandomShape()]
 let tetromino = createTetromino()
 let tetrominos: ITetromino[] = []
 let gameOver = false
@@ -195,8 +205,8 @@ function placeTetromino(t: ITetromino) {
 	if (t.row < 1) {
 		gameOver = true
 	}
-
 	tetrominos.push(t)
+
 	t.matrix.forEach((row, index) => {
 		let y = t.row + index
 		row.forEach((val, i) => {
@@ -240,12 +250,18 @@ function occupied() {
 
 function moveDown() {
 	clearTetromino(tetromino)
-	tetromino.row++
-	drawTetromino(tetromino)
 	if (occupied().bottom) {
 		placeTetromino(tetromino)
 		if (gameOver) clearInterval(timerId)
-		else tetromino = createTetromino()
+		else {
+			const nextTetromino = sequence[0]
+			sequence = [sequence[1], sequence[2], getRandomShape()]
+			tetromino = createTetromino(nextTetromino)
+			drawSequence(sequence)
+		}
+	} else {
+		tetromino.row++
+		drawTetromino(tetromino)
 	}
 }
 
@@ -273,10 +289,11 @@ function rotate() {
 	}
 }
 
+drawSequence(sequence)
+
 window.addEventListener('keydown', (e) => {
 	if (e.code === 'ArrowLeft') moveLeft()
 	if (e.code === 'ArrowRight') moveRight()
-	if (e.code === 'ArrowDown') moveDown()
 	if (e.code === 'ArrowDown') moveDown()
 	if (e.code === 'KeyR') rotate()
 })
