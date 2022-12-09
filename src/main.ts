@@ -1,73 +1,49 @@
 import './style.css'
 
-function cn(className: string) {
-	return className
-}
-function getRandomInt(min: number, max: number) {
-	min = Math.ceil(min)
-	max = Math.floor(max)
-	return Math.floor(Math.random() * (max - min + 1)) + min
-}
+const $ = <T extends HTMLElement>(selector: string) =>
+	<T>document.querySelector(selector)
 
-function rotateMatrix(matrix: number[][]) {
-	const N = matrix.length - 1
-	const result = matrix.map((row, i) => row.map((_, j) => matrix[N - j][i]))
-	return result
-}
-
-function drawPlayfield(width: number, height: number) {
-	const playfieldElement = <HTMLDivElement>document.getElementById('play-field')
-	playfieldElement.style.width = width + 'px'
-	playfieldElement.style.height = height + 'px'
-	return playfieldElement
-}
-
-function setSidebarSize(height: number, width: number) {
-	const sidebarElement = <HTMLDivElement>document.getElementById('sidebar')
-	sidebarElement.style.height = height + 'px'
-	sidebarElement.style.width = width + 'px'
-}
-
-function drawSequence(sequence: string[]) {
-	const sequenceElement = <HTMLDivElement>document.getElementById('sequence')
-	sequenceElement.innerText = ''
-	sequence.forEach((s) => {
-		const el = document.createElement('span')
-		el.innerText = s
-		sequenceElement.appendChild(el)
-	})
-}
+const canvas = <HTMLCanvasElement>$('.playfield')
 
 const COLS = 10
-const ROWS = 24
-const CELL_SIZE = 25
-const PLAYFIELD_WIDTH = CELL_SIZE * COLS
-const PLAYFIELD_HEIGHT = CELL_SIZE * ROWS
+const ROWS = 20
+const SQUARE_SIZE = 25
 
-const playfieldElement = drawPlayfield(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT)
+canvas.width = COLS * SQUARE_SIZE
+canvas.height = ROWS * SQUARE_SIZE
+const ctx = canvas.getContext('2d')!
 
-setSidebarSize(PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH / 2)
+type Matrix<T> = T[][]
 
-const Tetromino = {
-	O: [
-		[1, 1],
-		[1, 1],
-	],
+const map: Matrix<number | TetrominoName> = []
+
+for (let row = 0; row < ROWS; row++) {
+	map[row] = []
+	for (let col = 0; col < COLS; col++) {
+		map[row][col] = 0
+	}
+}
+
+const TETROMINOS_MATRIX = {
 	I: [
-		[0, 0, 1, 0],
-		[0, 0, 1, 0],
-		[0, 0, 1, 0],
-		[0, 0, 1, 0],
+		[0, 0, 0, 0],
+		[1, 1, 1, 1],
+		[0, 0, 0, 0],
+		[0, 0, 0, 0],
+	],
+	J: [
+		[1, 0, 0],
+		[1, 1, 1],
+		[0, 0, 0],
 	],
 	L: [
 		[0, 0, 1],
 		[1, 1, 1],
 		[0, 0, 0],
 	],
-	J: [
-		[1, 0, 0],
-		[1, 1, 1],
-		[0, 0, 0],
+	O: [
+		[1, 1],
+		[1, 1],
 	],
 	S: [
 		[0, 1, 1],
@@ -86,85 +62,129 @@ const Tetromino = {
 	],
 }
 
-type Shapes = keyof typeof Tetromino
-
-const Colors: Record<Shapes, string> = {
-	I: 'aqua',
-	J: 'darkblue',
-	L: 'orange',
+// color of each tetromino
+const TETROMINO_COLORS = {
+	I: 'cyan',
 	O: 'yellow',
+	T: 'purple',
 	S: 'green',
 	Z: 'red',
-	T: 'magenta',
+	J: 'blue',
+	L: 'orange',
 }
 
-function getRandomShape() {
-	const shapes = ['I', 'J', 'L', 'O', 'S', 'Z', 'T'] as const
-	const shape = shapes[getRandomInt(0, shapes.length - 1)]
-	return shape
+type TetrominoName = keyof typeof TETROMINOS_MATRIX
+
+const TETROMINO_NAMES: TetrominoName[] = ['I', 'J', 'L', 'O', 'S', 'T', 'Z']
+
+function getRandomInt(min: number, max: number) {
+	min = Math.ceil(min)
+	max = Math.floor(max)
+	return Math.floor(Math.random() * (max - min + 1)) + min
 }
 
-function createTetromino(shape?: Shapes) {
-	const shapeToRender = shape ?? getRandomShape()
+interface Tetromino {
+	row: number
+	col: number
+	matrix: Matrix<number>
+	name: TetrominoName
+	color: string
+}
+
+const createTetromino = (): Tetromino => {
+	const name = TETROMINO_NAMES[getRandomInt(0, TETROMINO_NAMES.length - 1)]
+	const matrix = TETROMINOS_MATRIX[name]
+	const color = TETROMINO_COLORS[name]
 	return {
-		matrix: Tetromino[shapeToRender],
-		color: Colors[shapeToRender],
-		shape: shapeToRender,
-		row: 0,
-		col: getRandomInt(1, COLS - Tetromino.O[0].length),
+		row: -2,
+		col: getRandomInt(0, COLS - matrix[0].length),
+		matrix,
+		name,
+		color,
 	}
 }
 
-type ITetromino = ReturnType<typeof createTetromino>
-
-let sequence = [getRandomShape(), getRandomShape(), getRandomShape()]
 let tetromino = createTetromino()
 let gameOver = false
-let timerId: number
-let timerSpeed = 1000
+let intervalId: number
 
-let playfield: (number | Shapes)[][] = []
-
-for (let row = 0; row < ROWS; row++) {
-	playfield[row] = []
-	for (let col = 0; col < COLS; col++) {
-		playfield[row][col] = 0
-	}
-}
-
-for (let row = 0; row < ROWS; row++) {
-	for (let col = 0; col < COLS; col++) {
-		const el = document.createElement('div')
-		el.style.width = CELL_SIZE + 'px'
-		el.style.height = CELL_SIZE + 'px'
-		el.classList.add(cn('border'))
-		el.classList.add(cn('border-gray-800'))
-		el.id = `${row}-${col}`
-		playfieldElement.appendChild(el)
-	}
-}
-
-tetromino.matrix.forEach((row, i) => {
-	row.forEach((col, j) => {
-		if (col) {
-			playfield[tetromino.row + i][tetromino.col + j] = tetromino.shape
+const isValidMove = () => {
+	for (let row = 0; row < tetromino.matrix.length; row++) {
+		for (let col = 0; col < tetromino.matrix[row].length; col++) {
+			if (
+				tetromino.matrix[row][col] &&
+				(tetromino.col + col <= 0 ||
+					tetromino.col + col >= COLS ||
+					tetromino.row + row >= ROWS ||
+					map[tetromino.row + row]?.[tetromino.col + col])
+			) {
+				return false
+			}
 		}
-	})
-})
+	}
+	return true
+}
 
-function drawCells() {
-	for (let row = 0; row < ROWS; row++) {
-		for (let col = 0; col < COLS; col++) {
-			if (playfield[row][col]) {
-				let name = playfield[row][col] as Shapes
-				let color = Colors[name]
-				let el = <HTMLDivElement>document.getElementById(`${row}-${col}`)
-				el.style.background = color
+const placeTetrominoOnMap = () => {
+	if (tetromino.row <= 0) {
+		gameOver = true
+		return
+	}
+
+	for (let row = 0; row < tetromino.matrix.length; row++) {
+		for (let col = 0; col < tetromino.matrix[row].length; col++) {
+			if (tetromino.matrix[row][col]) {
+				if (map[tetromino.row + row])
+					map[tetromino.row + row][tetromino.col + col] = tetromino.name
 			}
 		}
 	}
 }
 
-drawCells()
+const drawTetromino = () => {
+	ctx.fillStyle = tetromino.color
+	for (let row = 0; row < tetromino.matrix.length; row++) {
+		for (let col = 0; col < tetromino.matrix[row].length; col++) {
+			if (tetromino.matrix[row][col]) {
+				ctx.fillRect(
+					(col + tetromino.col) * SQUARE_SIZE,
+					(row + tetromino.row) * SQUARE_SIZE,
+					SQUARE_SIZE - 1,
+					SQUARE_SIZE - 1
+				)
+			}
+		}
+	}
+}
 
-drawSequence(sequence)
+const drawPlacedTetromino = () => {
+	for (let row = 0; row < map.length; row++) {
+		for (let col = 0; col < map[row].length; col++) {
+			if (map[row][col]) {
+				const name = map[row][col] as TetrominoName
+				ctx.fillStyle = TETROMINO_COLORS[name]
+				ctx.fillRect(
+					col * SQUARE_SIZE,
+					row * SQUARE_SIZE,
+					SQUARE_SIZE - 1,
+					SQUARE_SIZE - 1
+				)
+			}
+		}
+	}
+}
+
+intervalId = setInterval(() => {
+	if (gameOver) clearInterval(intervalId)
+	ctx.clearRect(0, 0, canvas.width, canvas.height)
+	drawPlacedTetromino()
+	tetromino.row++
+	const validMove = isValidMove()
+	if (!validMove) {
+		tetromino.row--
+		placeTetrominoOnMap()
+		drawPlacedTetromino()
+		tetromino = createTetromino()
+	}
+	drawTetromino()
+}, 500)

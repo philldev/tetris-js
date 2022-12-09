@@ -4,20 +4,14 @@
 		<meta charset="UTF-8" />
 		<link rel="icon" type="image/svg+xml" href="/vite.svg" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Vite + TS</title>
+		<title>Tetris JS</title>
 	</head>
-	<body class="text-white">
-		<div id="app" class="bg-black h-screen flex justify-center items-center">
-			<div
-				id="play-field"
-				class="flex flex-wrap outline outline-gray-800"
-			></div>
-			<div id="sidebar" class="flex flex-col gap-4 ml-4">
-				<div class="p-2 px-4 border-2 border-gray-800">
-					<p class="mb-2">NEXT</p>
-					<div id="sequence" class="flex flex-col"></div>
-				</div>
-			</div>
+	<body>
+		<header class="header">
+			<h1>Tetris JS</h1>
+		</header>
+		<div class="game">
+			<canvas class="playfield"></canvas>
 		</div>
 		<script type="module" src="/src/main.ts"></script>
 	</body>
