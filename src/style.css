@@ -1,5 +1,6 @@
 * {
 	box-sizing: border-box;
+	margin: 0;
 }
 
 body {
@@ -8,12 +9,35 @@ body {
 	min-height: 100vh;
 	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
 		Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+	background-image: linear-gradient(
+		to bottom,
+		#051937,
+		#004d7a,
+		#008793,
+		#00bf72,
+		#a8eb12
+	);
+	color: aliceblue;
+}
+
+h2 {
+	font-size: 20px;
+}
+
+p {
+	font-size: 14px;
+}
+
+canvas,
+.display_box {
+	background: #051937;
 }
 
 .header {
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	padding: 32px;
 }
 
 .game {
@@ -21,9 +45,24 @@ body {
 	padding: 18px;
 	margin: 0 auto;
 	display: flex;
+	align-items: flex-start;
 }
 
 .playfield {
 	outline: 1px solid gainsboro;
 	margin-right: 20px;
+}
+
+.side_bar {
+	flex: 1;
+}
+
+.display_box {
+	border: 1px solid gainsboro;
+	padding: 16px;
+	margin-bottom: 12px;
+}
+
+.display_box h2 {
+	margin-bottom: 8px;
 }
