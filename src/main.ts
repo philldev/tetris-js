@@ -15,7 +15,7 @@ const ctx = canvas.getContext('2d')!
 
 type Matrix<T> = T[][]
 
-const map: Matrix<number | TetrominoName> = []
+let map: Matrix<number | TetrominoName> = []
 
 for (let row = 0; row < ROWS; row++) {
 	map[row] = []
@@ -93,6 +93,7 @@ interface Tetromino {
 
 const createTetromino = (): Tetromino => {
 	const name = TETROMINO_NAMES[getRandomInt(0, TETROMINO_NAMES.length - 1)]
+	// const name = 'O'
 	const matrix = TETROMINOS_MATRIX[name]
 	const color = TETROMINO_COLORS[name]
 	return {
@@ -104,20 +105,24 @@ const createTetromino = (): Tetromino => {
 	}
 }
 
-let tetromino = createTetromino()
+let currentTetromino = createTetromino()
 let gameOver = false
 let intervalId: number
 
-const isValidMove = () => {
+const isValidMove = (tetromino: Tetromino = currentTetromino) => {
 	for (let row = 0; row < tetromino.matrix.length; row++) {
 		for (let col = 0; col < tetromino.matrix[row].length; col++) {
 			if (
 				tetromino.matrix[row][col] &&
-				(tetromino.col + col <= 0 ||
+				(tetromino.col + col < 0 ||
 					tetromino.col + col >= COLS ||
 					tetromino.row + row >= ROWS ||
 					map[tetromino.row + row]?.[tetromino.col + col])
 			) {
+				console.log(tetromino.col + col < 0, 'left bound')
+				console.log(tetromino.col + col > COLS, 'right bound')
+				console.log(tetromino.row + row > ROWS, 'bottom bound')
+				console.log(tetromino.row + row >= ROWS, 'collide')
 				return false
 			}
 		}
@@ -126,29 +131,53 @@ const isValidMove = () => {
 }
 
 const placeTetrominoOnMap = () => {
-	if (tetromino.row <= 0) {
+	console.log(currentTetromino)
+	if (currentTetromino.row <= 0) {
 		gameOver = true
 		return
 	}
-
-	for (let row = 0; row < tetromino.matrix.length; row++) {
-		for (let col = 0; col < tetromino.matrix[row].length; col++) {
-			if (tetromino.matrix[row][col]) {
-				if (map[tetromino.row + row])
-					map[tetromino.row + row][tetromino.col + col] = tetromino.name
+	for (let row = 0; row < currentTetromino.matrix.length; row++) {
+		for (let col = 0; col < currentTetromino.matrix[row].length; col++) {
+			if (currentTetromino.matrix[row][col]) {
+				if (map[currentTetromino.row + row])
+					map[currentTetromino.row + row][currentTetromino.col + col] =
+						currentTetromino.name
 			}
 		}
 	}
+	let clearedRow = 0
+	//https://gist.github.com/straker/3c98304f8a6a9174efd8292800891ea1
+	for (let row = 0; row < map.length; row++) {
+		const cellsInRow = map[row]
+		const clearable = cellsInRow.every((val) => val !== 0)
+		if (clearable) {
+			for (let col = 0; col < map[row].length; col++) {
+				map[row][col] = 0
+			}
+			const rowToUnshift = map[row]
+			map = map.filter((_, index) => index !== row)
+			map.unshift(rowToUnshift)
+			clearedRow++
+		}
+	}
+
+	if (clearedRow) {
+		ctx.clearRect(0, 0, canvas.width, canvas.height)
+	}
+
+	drawPlacedTetromino()
+
+	currentTetromino = createTetromino()
 }
 
 const drawTetromino = () => {
-	ctx.fillStyle = tetromino.color
-	for (let row = 0; row < tetromino.matrix.length; row++) {
-		for (let col = 0; col < tetromino.matrix[row].length; col++) {
-			if (tetromino.matrix[row][col]) {
+	ctx.fillStyle = currentTetromino.color
+	for (let row = 0; row < currentTetromino.matrix.length; row++) {
+		for (let col = 0; col < currentTetromino.matrix[row].length; col++) {
+			if (currentTetromino.matrix[row][col]) {
 				ctx.fillRect(
-					(col + tetromino.col) * SQUARE_SIZE,
-					(row + tetromino.row) * SQUARE_SIZE,
+					(col + currentTetromino.col) * SQUARE_SIZE,
+					(row + currentTetromino.row) * SQUARE_SIZE,
 					SQUARE_SIZE - 1,
 					SQUARE_SIZE - 1
 				)
@@ -174,17 +203,84 @@ const drawPlacedTetromino = () => {
 	}
 }
 
-intervalId = setInterval(() => {
+const moveDown = () => {
 	if (gameOver) clearInterval(intervalId)
 	ctx.clearRect(0, 0, canvas.width, canvas.height)
 	drawPlacedTetromino()
-	tetromino.row++
+	currentTetromino.row++
 	const validMove = isValidMove()
 	if (!validMove) {
-		tetromino.row--
+		currentTetromino.row--
 		placeTetrominoOnMap()
-		drawPlacedTetromino()
-		tetromino = createTetromino()
 	}
 	drawTetromino()
-}, 500)
+}
+
+const moveLeft = () => {
+	if (gameOver) return
+	ctx.clearRect(0, 0, canvas.width, canvas.height)
+	drawPlacedTetromino()
+	currentTetromino.col--
+	const validMove = isValidMove()
+	if (!validMove) {
+		currentTetromino.col++
+	}
+	drawTetromino()
+}
+
+const moveRight = () => {
+	if (gameOver) return
+	ctx.clearRect(0, 0, canvas.width, canvas.height)
+	drawPlacedTetromino()
+	currentTetromino.col++
+	const validMove = isValidMove()
+	if (!validMove) {
+		currentTetromino.col--
+	}
+	drawTetromino()
+}
+
+const rotate = () => {
+	if (gameOver || currentTetromino.name === 'O') return
+	ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+	const N = currentTetromino.matrix.length - 1
+	const newMatrix = currentTetromino.matrix.map((row, i) =>
+		row.map((_, j) => currentTetromino.matrix[N - j][i])
+	)
+	const prevMatrix = currentTetromino.matrix.map((v) => v)
+	drawPlacedTetromino()
+	currentTetromino.matrix = newMatrix
+	const validMove = isValidMove()
+	if (!validMove) {
+		currentTetromino.matrix = prevMatrix
+	}
+	drawTetromino()
+}
+
+const drop = () => {
+	const ghostTetromino = { ...currentTetromino }
+
+	for (let row = 0; row < map.length; row++) {
+		ghostTetromino.row++
+		if (!isValidMove(ghostTetromino)) {
+			ghostTetromino.row--
+			break
+		}
+	}
+
+	ctx.clearRect(0, 0, canvas.width, canvas.height)
+	drawPlacedTetromino()
+	currentTetromino.row = ghostTetromino.row
+	placeTetrominoOnMap()
+}
+
+window.addEventListener('keydown', (e) => {
+	if (e.key === 'ArrowLeft') moveLeft()
+	if (e.key === 'ArrowRight') moveRight()
+	if (e.key === 'ArrowDown') moveDown()
+	if (e.key === 'ArrowUp') rotate()
+	if (e.key === ' ') drop()
+})
+
+intervalId = setInterval(moveDown, 1000)
