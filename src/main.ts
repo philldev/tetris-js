@@ -24,6 +24,11 @@ for (let row = 0; row < ROWS; row++) {
 	}
 }
 
+const updateScoreUi = () => {
+	const element = <HTMLParagraphElement>document.getElementById('score')
+	element.innerText = score + ''
+}
+
 const TETROMINOS_MATRIX = {
 	I: [
 		[0, 0, 0, 0],
@@ -107,6 +112,7 @@ const createTetromino = (): Tetromino => {
 
 let currentTetromino = createTetromino()
 let gameOver = false
+let score = 0
 let intervalId: number
 
 const isValidMove = (tetromino: Tetromino = currentTetromino) => {
@@ -130,7 +136,7 @@ const isValidMove = (tetromino: Tetromino = currentTetromino) => {
 	return true
 }
 
-const placeTetrominoOnMap = () => {
+const placeTetrominoOnMap = (hardDrop?: boolean) => {
 	console.log(currentTetromino)
 	if (currentTetromino.row <= 0) {
 		gameOver = true
@@ -166,6 +172,22 @@ const placeTetrominoOnMap = () => {
 	}
 
 	drawPlacedTetromino()
+
+	const dropScore = hardDrop ? 2 : 1
+	const clearScore =
+		clearedRow === 1
+			? 40
+			: clearedRow === 2
+			? 100
+			: clearedRow === 3
+			? 300
+			: clearedRow > 3
+			? 1200
+			: 0
+
+	score = score + dropScore + clearScore
+
+	updateScoreUi()
 
 	currentTetromino = createTetromino()
 }
@@ -272,8 +294,10 @@ const drop = () => {
 	ctx.clearRect(0, 0, canvas.width, canvas.height)
 	drawPlacedTetromino()
 	currentTetromino.row = ghostTetromino.row
-	placeTetrominoOnMap()
+	placeTetrominoOnMap(true)
 }
+
+updateScoreUi()
 
 window.addEventListener('keydown', (e) => {
 	if (e.key === 'ArrowLeft') moveLeft()

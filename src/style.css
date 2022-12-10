@@ -20,14 +20,10 @@ body {
 	max-width: 500px;
 	padding: 18px;
 	margin: 0 auto;
+	display: flex;
 }
 
 .playfield {
 	outline: 1px solid gainsboro;
-	display: flex;
-	flex-wrap: wrap;
-}
-
-.playfield_cell {
-	border: 1px solid gainsboro;
+	margin-right: 20px;
 }
