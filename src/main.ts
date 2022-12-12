@@ -3,6 +3,7 @@ import './style.css'
 const COLS = 10
 const ROWS = 20
 const SQUARE_SIZE = 25
+const GAME_SPEED = 1000
 
 const TETROMINOS_MATRIX = {
 	I: [
@@ -103,9 +104,39 @@ const resetMap = () => {
 	}
 }
 
-const updateScoreUi = () => {
-	const element = <HTMLParagraphElement>document.getElementById('score')
-	element.innerText = score + ''
+const checkMapForClearedRows = () => {
+	let clearedRow = 0
+	//https://gist.github.com/straker/3c98304f8a6a9174efd8292800891ea1
+	for (let row = 0; row < map.length; row++) {
+		const cellsInRow = map[row]
+		const clearable = cellsInRow.every((val) => val !== 0)
+		if (clearable) {
+			for (let col = 0; col < map[row].length; col++) {
+				map[row][col] = 0
+			}
+			const rowToUnshift = map[row]
+			map = map.filter((_, index) => index !== row)
+			map.unshift(rowToUnshift)
+			clearedRow++
+		}
+	}
+	return clearedRow
+}
+
+const calculateScore = (clearedRow: number, hardDrop?: boolean) => {
+	const dropScore = hardDrop ? 2 : 1
+	const clearScore =
+		clearedRow === 1
+			? 40
+			: clearedRow === 2
+			? 100
+			: clearedRow === 3
+			? 300
+			: clearedRow > 3
+			? 1200
+			: 0
+
+	return score + dropScore + clearScore
 }
 
 const createTetromino = (name: TetrominoName): Tetromino => {
@@ -124,25 +155,13 @@ const getRandomName = () => {
 	return TETROMINO_NAMES[getRandomInt(0, TETROMINO_NAMES.length - 1)]
 }
 
-const showGameOverUi = () => {
-	const overlayElement = <HTMLDivElement>$('.gameover_overlay')
-	overlayElement.style.display = 'flex'
-	const gameoverScoreElement = <HTMLSpanElement>$('#gameover_score')
-	gameoverScoreElement.innerText = score + ''
-}
-
-const hideGameOverUi = () => {
-	const overlayElement = <HTMLDivElement>$('.gameover_overlay')
-	overlayElement.style.display = 'none'
-}
-
 const placeTetrominoOnMap = (hardDrop?: boolean) => {
-	console.log(currentTetromino)
 	if (currentTetromino.row <= 0) {
 		gameOver = true
-		showGameOverUi()
+		showGameOver()
 		return
 	}
+
 	for (let row = 0; row < currentTetromino.matrix.length; row++) {
 		for (let col = 0; col < currentTetromino.matrix[row].length; col++) {
 			if (currentTetromino.matrix[row][col]) {
@@ -152,60 +171,53 @@ const placeTetrominoOnMap = (hardDrop?: boolean) => {
 			}
 		}
 	}
-	let clearedRow = 0
-	//https://gist.github.com/straker/3c98304f8a6a9174efd8292800891ea1
-	for (let row = 0; row < map.length; row++) {
-		const cellsInRow = map[row]
-		const clearable = cellsInRow.every((val) => val !== 0)
-		if (clearable) {
-			for (let col = 0; col < map[row].length; col++) {
-				map[row][col] = 0
-			}
-			const rowToUnshift = map[row]
-			map = map.filter((_, index) => index !== row)
-			map.unshift(rowToUnshift)
-			clearedRow++
-		}
-	}
+
+	const clearedRow = checkMapForClearedRows()
 
 	if (clearedRow) {
-		playfieldCtx.clearRect(0, 0, playfieldCanvas.width, playfieldCanvas.height)
+		clearPlayfield()
 	}
 
 	drawPlacedTetromino()
 
-	const dropScore = hardDrop ? 2 : 1
-	const clearScore =
-		clearedRow === 1
-			? 40
-			: clearedRow === 2
-			? 100
-			: clearedRow === 3
-			? 300
-			: clearedRow > 3
-			? 1200
-			: 0
-
-	score = score + dropScore + clearScore
+	score = calculateScore(clearedRow, hardDrop)
 
 	updateScoreUi()
 
 	currentTetromino = createTetromino(sequence[0])
+
 	sequence = [sequence[1], sequence[2], getRandomName()]
+
 	drawNextSequence()
 }
+
+const drawPlayfieldCell = (params: {
+	row: number
+	col: number
+	color: string
+}) => {
+	playfieldCtx.fillStyle = params.color
+	playfieldCtx.fillRect(
+		params.col * SQUARE_SIZE,
+		params.row * SQUARE_SIZE,
+		SQUARE_SIZE - 1,
+		SQUARE_SIZE - 1
+	)
+}
+
+const clearPlayfield = () =>
+	playfieldCtx.clearRect(0, 0, playfieldCanvas.width, playfieldCanvas.height)
 
 const drawTetromino = () => {
 	playfieldCtx.fillStyle = currentTetromino.color
 	for (let row = 0; row < currentTetromino.matrix.length; row++) {
 		for (let col = 0; col < currentTetromino.matrix[row].length; col++) {
 			if (currentTetromino.matrix[row][col]) {
-				playfieldCtx.fillRect(
-					(col + currentTetromino.col) * SQUARE_SIZE,
-					(row + currentTetromino.row) * SQUARE_SIZE,
-					SQUARE_SIZE - 1,
-					SQUARE_SIZE - 1
-				)
+				drawPlayfieldCell({
+					row: row + currentTetromino.row,
+					col: col + currentTetromino.col,
+					color: currentTetromino.color,
+				})
 			}
 		}
 	}
@@ -238,12 +250,11 @@ const drawPlacedTetromino = () => {
 			if (map[row][col]) {
 				const name = map[row][col] as TetrominoName
 				playfieldCtx.fillStyle = TETROMINO_COLORS[name]
-				playfieldCtx.fillRect(
-					col * SQUARE_SIZE,
-					row * SQUARE_SIZE,
-					SQUARE_SIZE - 1,
-					SQUARE_SIZE - 1
-				)
+				drawPlayfieldCell({
+					col,
+					row,
+					color: TETROMINO_COLORS[name],
+				})
 			}
 		}
 	}
@@ -272,7 +283,7 @@ const isValidMove = (tetromino: Tetromino = currentTetromino) => {
 
 const moveDown = () => {
 	if (gameOver || paused) clearInterval(intervalId)
-	playfieldCtx.clearRect(0, 0, playfieldCanvas.width, playfieldCanvas.height)
+	clearPlayfield()
 	drawPlacedTetromino()
 	currentTetromino.row++
 	const validMove = isValidMove()
@@ -285,7 +296,7 @@ const moveDown = () => {
 
 const moveLeft = () => {
 	if (gameOver) return
-	playfieldCtx.clearRect(0, 0, playfieldCanvas.width, playfieldCanvas.height)
+	clearPlayfield()
 	drawPlacedTetromino()
 	currentTetromino.col--
 	const validMove = isValidMove()
@@ -297,7 +308,7 @@ const moveLeft = () => {
 
 const moveRight = () => {
 	if (gameOver) return
-	playfieldCtx.clearRect(0, 0, playfieldCanvas.width, playfieldCanvas.height)
+	clearPlayfield()
 	drawPlacedTetromino()
 	currentTetromino.col++
 	const validMove = isValidMove()
@@ -309,8 +320,7 @@ const moveRight = () => {
 
 const rotate = () => {
 	if (gameOver || currentTetromino.name === 'O') return
-	playfieldCtx.clearRect(0, 0, playfieldCanvas.width, playfieldCanvas.height)
-
+	clearPlayfield()
 	const N = currentTetromino.matrix.length - 1
 	const newMatrix = currentTetromino.matrix.map((row, i) =>
 		row.map((_, j) => currentTetromino.matrix[N - j][i])
@@ -336,33 +346,55 @@ const drop = () => {
 		}
 	}
 
-	playfieldCtx.clearRect(0, 0, playfieldCanvas.width, playfieldCanvas.height)
+	clearPlayfield()
 	drawPlacedTetromino()
+
 	currentTetromino.row = ghostTetromino.row
+
 	placeTetrominoOnMap(true)
 }
 
+const gameoverOverlayElement = <HTMLDivElement>$('.gameover_overlay')
+const gameoverScoreElement = <HTMLSpanElement>$('#gameover_score')
+const helpOverlayElement = <HTMLDivElement>$('.help_overlay')
+const gameMenuOverlayElement = <HTMLDivElement>$('.game_menu_overlay')
+const scoreElement = <HTMLParagraphElement>$('#score')
+
+const setElementDisplay = (el: HTMLElement, val: string) =>
+	(el.style.display = val)
+const setElementInnerText = (el: HTMLElement, val: string) =>
+	(el.innerText = val)
+
+const updateScoreUi = () => {
+	scoreElement.innerText = score + ''
+}
+
+const showGameOver = () => {
+	setElementDisplay(gameoverOverlayElement, 'flex')
+	setElementInnerText(gameoverScoreElement, score + '')
+}
+
+const hideGameOver = () => {
+	setElementDisplay(gameoverOverlayElement, 'none')
+}
+
 const showHelp = () => {
-	const overlay = <HTMLDivElement>$('.help_overlay')
-	overlay.style.display = 'flex'
+	setElementDisplay(helpOverlayElement, 'flex')
 }
 
 const hideHelp = () => {
-	const overlay = <HTMLDivElement>$('.help_overlay')
-	overlay.style.display = 'none'
+	setElementDisplay(helpOverlayElement, 'none')
 }
 
 const showGameMenu = () => {
 	paused = true
-	const overlay = <HTMLDivElement>$('.game_menu_overlay')
-	overlay.style.display = 'flex'
+	setElementDisplay(gameMenuOverlayElement, 'flex')
 }
 
 const hideGameMenu = () => {
 	paused = false
-	const overlay = <HTMLDivElement>$('.game_menu_overlay')
-	overlay.style.display = 'none'
-	intervalId = setInterval(moveDown, 1000)
+	setElementDisplay(gameMenuOverlayElement, 'none')
+	intervalId = setInterval(moveDown, GAME_SPEED)
 }
 
 // STATES
@@ -387,15 +419,15 @@ const resetState = () => {
 	sequence = [getRandomName(), getRandomName(), getRandomName()]
 	updateScoreUi()
 	drawNextSequence()
-	playfieldCtx.clearRect(0, 0, playfieldCanvas.width, playfieldCanvas.height)
-	intervalId = setInterval(moveDown, 1000)
+	clearPlayfield()
+	intervalId = setInterval(moveDown, GAME_SPEED)
 }
 
 resetMap()
 updateScoreUi()
 drawNextSequence()
 
-intervalId = setInterval(moveDown, 1000)
+intervalId = setInterval(moveDown, GAME_SPEED)
 
 window.addEventListener('keydown', (e) => {
 	if (e.key === 'ArrowLeft') moveLeft()
@@ -408,7 +440,7 @@ window.addEventListener('keydown', (e) => {
 
 restartBtn1.addEventListener('click', () => {
 	resetState()
-	hideGameOverUi()
+	hideGameOver()
 })
 
 restartBtn2.addEventListener('click', () => {
